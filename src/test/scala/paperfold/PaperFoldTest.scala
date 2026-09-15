@@ -6,6 +6,23 @@ class PaperFoldTest extends munit.FunSuite:
     val paper = Paper.create(2, 2)
     assertEquals(toLists(paper), List(List("A", "B"), List("C", "D")))
 
+  test("3x3 paper with L 2, B 1, R 1, T 1 should be HIGADFEBC"):
+    val paper = Paper.create(3, 3)
+    assertEquals(
+      toLists(paper),
+      List(
+        List("A", "B", "C"),
+        List("D", "E", "F"),
+        List("G", "H", "I")
+      )
+    )
+    val folded = Folder.applyAll(
+      paper,
+      List(Instruction('L', 2), Instruction('B', 1), Instruction('R', 1), Instruction('T', 1))
+    )
+    assertEquals(toLists(folded), List(List("HIGADFEBC")))
+
+
   test("4x3 paper continues naming on the next row"):
     val paper = Paper.create(3, 4)
     assertEquals(
