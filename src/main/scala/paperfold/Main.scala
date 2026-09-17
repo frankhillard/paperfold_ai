@@ -5,7 +5,9 @@ object Main:
     if args.isEmpty then
       System.err.println("usage: paperfold <input-file>")
       sys.exit(1)
-    val (rows, cols, instructions) = Input.readPath(args.head)
-    val paper = Paper.create(rows, cols)
-    val folded = Folder.applyAll(paper, instructions)
-    println(Paper.show(folded))
+    Input.readPath(args.head) match
+      case Job.Fold(length, width, instructions) =>
+        val folded = Folder.applyAll(Paper.create(length, width), instructions)
+        println(Paper.show(folded))
+      case Job.Unfold(folded) =>
+        println(Unfolder.show(Unfolder.instructionsFor(folded)))

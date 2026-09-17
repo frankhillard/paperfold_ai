@@ -1,3 +1,5 @@
-# 3 rows, 4 columns — L 2 then remaining folds are left to the user
-3 4
+# 3 rows, 4 columns — L 2 folds the left half over the right half
+FOLD
+length 3
+width 4
 L 2

@@ -1,4 +1,6 @@
-# 2 rows, 2 columns — README example, expected result: CABD
-2 2
+# 2×2 README example — expected result: CABD
+FOLD
+length 2
+width 2
 T 1
 L 1

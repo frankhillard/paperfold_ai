@@ -22,7 +22,6 @@ class PaperFoldTest extends munit.FunSuite:
     )
     assertEquals(toLists(folded), List(List("HIGADFEBC")))
 
-
   test("4x3 paper continues naming on the next row"):
     val paper = Paper.create(3, 4)
     assertEquals(
@@ -41,6 +40,53 @@ class PaperFoldTest extends munit.FunSuite:
       List(Instruction('T', 1), Instruction('L', 1))
     )
     assertEquals(toLists(folded), List(List("CABD")))
+
+  test("R1 on 4x3 yields D C BA; H G FE; L K JI"):
+    val paper = Paper.create(3, 4)
+    val folded = Folder.applyAll(
+      paper,
+      List(Instruction('R', 1))
+    )
+    assertEquals(
+      toLists(folded),
+      List(
+        List("D", "C", "BA"),
+        List("H", "G", "FE"),
+        List("L", "K", "JI")
+      )
+    )
+
+  test("R2 on 4x3 yields DA CB; HE GF; LI KJ"):
+    val paper = Paper.create(3, 4)
+    val folded = Folder.applyAll(
+      paper,
+      List(Instruction('R', 2))
+    )
+    assertEquals(
+      toLists(folded),
+      List(
+        List("DA", "CB"),
+        List("HE", "GF"),
+        List("LI", "KJ")
+      )
+    )
+
+  test("R2,B2,T1,L1 on 4x3 yields EHLIDABCJKGF"):
+    val paper = Paper.create(3, 4)
+    val folded = Folder.applyAll(
+      paper,
+      List(Instruction('R', 2), Instruction('B', 2), Instruction('T', 1), Instruction('L', 1))
+    )
+    assertEquals(toLists(folded), List(List("EHLIDABCJKGF")))
+
+
+  test("R2,T1,R1,B1 on 3x3 yields GIHEFCBAD"):
+    val paper = Paper.create(3, 3)
+    val folded = Folder.applyAll(
+      paper,
+      List(Instruction('R', 2), Instruction('T', 1), Instruction('R', 1), Instruction('B', 1))
+    )
+    assertEquals(toLists(folded), List(List("GIHEFCBAD")))
 
   test("L 2 on 4 columns folds 0 onto 3 and 1 onto 2"):
     val paper = Paper.create(3, 4)
@@ -72,12 +118,49 @@ class PaperFoldTest extends munit.FunSuite:
     val afterLeft = Folder.fold(afterTop, Instruction('L', 1))
     assertEquals(toLists(afterLeft), List(List("CABD")))
 
-  test("input file parser reads size and instructions"):
-    val raw = List("2 2", "T 1", "L 1")
-    val (rows, cols, instructions) = Input.parse(raw)
-    assertEquals(rows, 2)
-    assertEquals(cols, 2)
-    assertEquals(instructions, List(Instruction('T', 1), Instruction('L', 1)))
+  test("FOLD input reads length, width and instructions"):
+    val raw = List("mod FOLD", "length 2", "width 2", "T 1", "L 1")
+    Input.parse(raw) match
+      case Job.Fold(length, width, instructions) =>
+        assertEquals(length, 2)
+        assertEquals(width, 2)
+        assertEquals(instructions, List(Instruction('T', 1), Instruction('L', 1)))
+      case other =>
+        fail(s"expected FOLD job, got $other")
+
+  test("UNFOLD input reads the stacked paper"):
+    assertEquals(Input.parse(List("UNFOLD", "CABD")), Job.Unfold("CABD"))
+    assertEquals(Input.parse(List("UNFOLD CABD")), Job.Unfold("CABD"))
+
+  test("UNFOLD CABD recovers T 1 then L 1"):
+    assertEquals(
+      Unfolder.instructionsFor("CABD"),
+      List(Instruction('T', 1), Instruction('L', 1))
+    )
+
+  test("UNFOLD of a 3x3 stack round-trips on a 3x3 sheet"):
+    val expected = "HIGADFEBC"
+    val instructions = Unfolder.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(3, 3), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+  test("UNFOLD of a 3x3 stack round-trips on a 3x3 sheet"):
+    val expected = "GIHEFCBAD"
+    val instructions = Unfolder.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(3, 3), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+  test("UNFOLD of a 4x3 stack round-trips on a 4x3 sheet"):
+    val expected = "EHLIDABCJKGF"
+    val instructions = Unfolder.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(3, 4), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+  test("UNFOLD of a 4x3 stack round-trips on a 4x3 sheet"):
+    val expected = "FGKJCBADILHE"
+    val instructions = Unfolder.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(3, 4), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
 
   private def toLists(paper: Array[Array[String]]): List[List[String]] =
     paper.map(_.toList).toList
