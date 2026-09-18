@@ -11,7 +11,20 @@ object Unfolder:
     require(target.nonEmpty, "cannot unfold an empty paper")
     val n = target.length
     val start = enqueueShapes(n, 1, Nil)
-    search(start, Set.empty, target)
+    //println(s"enqueueShapes" + start.length);
+    //displayShapes(start)
+    val (result, nbfoldcalls) = search(start, Set.empty, target, 0)
+    println(s"target nbfoldcalls " + target + ", " + nbfoldcalls);
+    result
+
+  def displayShapes(shapes: List[(Array[Array[String]], List[Instruction])]): String = 
+     shapes match 
+        case Nil => "Finished"
+        case (paper, instructions) :: rest => 
+          val dispPaper = Paper.show(paper)
+          println(dispPaper)
+          println(s"inst" + instructions)
+          displayShapes(rest)
 
   def show(instructions: List[Instruction]): String =
     instructions match
@@ -24,18 +37,21 @@ object Unfolder:
   private def search(
       queue: List[(Array[Array[String]], List[Instruction])],
       seen: Set[String],
-      target: String
-  ): List[Instruction] =
+      target: String,
+      nbcalls: Int
+  ): (List[Instruction], Int) =
     queue match
       case Nil =>
         throw new IllegalArgumentException(s"cannot unfold $target")
       case (paper, revSteps) :: rest =>
         val key = snapshot(paper)
-        if seen.contains(key) then search(rest, seen, target)
-        else if isSolved(paper, target) then reverse(revSteps)
+        if seen.contains(key) then search(rest, seen, target, nbcalls)
+        else if isSolved(paper, target) then (reverse(revSteps), nbcalls)
         else
-          val next = expand(paper, revSteps, candidates(paper))
-          search(rest ++ next, seen + key, target)
+          val candidates_pool = candidates(paper)
+          val (next, nbfold) = expand(paper, revSteps, candidates_pool, 0)
+          //println("expand paper" + Paper.show(paper) + " candidates " + candidates_pool.length + " cost total" + nbcalls + nbfold)
+          search(rest ++ next, seen + key, target, nbcalls + nbfold)
 
   private def isSolved(paper: Array[Array[String]], target: String): Boolean =
     Paper.height(paper) == 1 && Paper.width(paper) == 1 && paper(0)(0) == target
@@ -55,12 +71,15 @@ object Unfolder:
   private def expand(
       paper: Array[Array[String]],
       revSteps: List[Instruction],
-      ops: List[Instruction]
-  ): List[(Array[Array[String]], List[Instruction])] =
+      ops: List[Instruction],
+      nbfold: Int
+  ): (List[(Array[Array[String]], List[Instruction])], Int) =
     ops match
-      case Nil => Nil
+      case Nil => (Nil, nbfold)
       case head :: tail =>
-        (Folder.fold(paper, head), head :: revSteps) :: expand(paper, revSteps, tail)
+        val foldedWithHead = (Folder.fold(paper, head), head :: revSteps)
+        val (foldedWithRest, nb) = expand(paper, revSteps, tail, nbfold + 1)  
+        (foldedWithHead :: foldedWithRest, nb) 
 
   private def candidates(paper: Array[Array[String]]): List[Instruction] =
     val cols = Paper.width(paper)
