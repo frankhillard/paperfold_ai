@@ -162,5 +162,12 @@ class PaperFoldTest extends munit.FunSuite:
     val folded = Folder.applyAll(Paper.create(3, 4), instructions)
     assertEquals(toLists(folded), List(List(expected)))
 
+  test("UNFOLD SMART of a 3x3 stack round-trips on a 3x3 sheet"):
+    val expected = "HIGADFEBC"
+    val instructions = UnfolderSmart.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(3, 3), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+
   private def toLists(paper: Array[Array[String]]): List[List[String]] =
     paper.map(_.toList).toList
