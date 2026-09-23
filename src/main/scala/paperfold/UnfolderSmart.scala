@@ -4,16 +4,26 @@ type Score = Int
 type Cost = Int
 type PaperShape = Array[Array[String]]
 
+import scala.util.Random
+
 object UnfolderSmart:
-    def instructionsFor(target: String): List[Instruction] =
+    def instructionsFor(target: String): (List[Instruction], Score, (Int, Int)) =
         require(target.nonEmpty, "cannot unfold an empty paper")
         val n = target.length
         val start = enqueueShapes(n, 1, Nil)
-        //println(s"enqueueShapes" + start.length);
-        //displayShapes(start)
-        val (result, cost) = runMultiShape(start, target, List[(List[Instruction], Score)](), 0)
-        println(s"cost: " + cost + ", result" + result);
-        result(0)(0)
+        val sortedShapes = sortShapes(start, List[Array[Array[String]]]())
+        val (result, cost) = runMultiShape(sortedShapes, target, List[(List[Instruction], Score, (Int, Int))](), 0)
+        println(s"total cost: " + cost + ", result" + result)
+        getBest(0, result, (Nil, 0, (1, 1)))
+
+    def getBest(bestScore: Int, result: List[(List[Instruction], Score, (Int, Int))], best: (List[Instruction], Score, (Int, Int)) ) : (List[Instruction], Score, (Int, Int)) =
+        result match
+            case elt :: rest => 
+                if elt(1) > bestScore then
+                    getBest(elt(1), rest, elt)
+                else
+                    getBest(bestScore, rest, best)
+            case Nil => best
 
     private def enqueueShapes(
         n: Int,
@@ -28,55 +38,139 @@ object UnfolderSmart:
         else 
             enqueueShapes(n, rows + 1, acc)
 
-    def runMultiShape(shapes: List[PaperShape], target: String, result: List[(List[Instruction], Score)], cost: Cost): (List[(List[Instruction], Score)], Cost) =
+    def sortShapes(shapes: List[Array[Array[String]]], sorted: List[Array[Array[String]]]): List[Array[Array[String]]] = 
+        shapes match
+            case Nil => sorted
+            case shape :: rest => 
+                sortShapes(rest, insertInShapes(shape, sorted))
+
+    def insertInShapes(elt: Array[Array[String]], shapes: List[Array[Array[String]]]): List[Array[Array[String]]] = 
+        shapes match
+            case shape :: rest =>
+                val eltDims = Paper.height(elt) + Paper.width(elt)
+                val shapeDims = Paper.height(shape) + Paper.width(shape)
+                if eltDims < shapeDims then 
+                    elt :: shape :: rest
+                else
+                    shape :: insertInShapes(elt, rest)
+            case Nil => elt :: Nil
+
+    def runMultiShape(shapes: List[PaperShape], target: String, result: List[(List[Instruction], Score, (Int, Int))], cost: Cost): (List[(List[Instruction], Score, (Int, Int))], Cost) =
         shapes match
             case Nil => (result, cost)
             case head :: rest => 
                 val (resultRunShape, costRun) = run(head, target)
-                runMultiShape(rest, target, resultRunShape, cost + costRun)
+                if resultRunShape.length > 0 then
+                    println("costRun: " + costRun + " ,result best: " + resultRunShape(0) + " for shape " + + Paper.height(head) + "x" + Paper.width(head))
+                else
+                    println("no result !")
+                if (resultRunShape(0)(1) == 10000) then
+                    ((resultRunShape(0)(0), resultRunShape(0)(1), (Paper.height(head), Paper.width(head))) :: result, cost + costRun)
+                else
+                    runMultiShape(rest, target, (resultRunShape(0)(0), resultRunShape(0)(1), (Paper.height(head), Paper.width(head))) :: result, cost + costRun)
 
     def run(paper: PaperShape, target: String): (List[(List[Instruction], Score)], Cost)  = 
         // generates random (first pool)
-        // TODO : first random pool
-        val firstPool = List(
-            List(Instruction('R', 2), Instruction('T', 1), Instruction('R', 1), Instruction('B', 1)),
-            List(Instruction('L', 2), Instruction('R', 1), Instruction('B', 2), Instruction('L', 1)),
-        )
+        val (firstPool, costRandChildren) = generateSiblingsByRandom(5, paper, Nil, 0)
         // evaluate first pool
         val (evaluatedFirstPool, costEval) = evaluate(paper, firstPool, target, 0, List[(List[Instruction], Score)]())
         // order list
         val orderedPool = sortPool(evaluatedFirstPool, List[(List[Instruction], Score)]())
         // run 10 generations
-        val (finalPool, cost) = nextGeneration(10, paper, target, orderedPool, 0)
-        (finalPool, costEval + cost)
+        val (finalPool, cost) = nextGeneration(20, paper, target, orderedPool, 0)
+        println("shape: " + Paper.height(paper) + "x" + Paper.width(paper) + " ,best: " + finalPool(0))
+        (finalPool, costRandChildren + costEval + cost)
 
     def nextGeneration(nbGen: Int, paper: Array[Array[String]], target: String, pool: List[(List[Instruction], Score)], cost: Int): (List[(List[Instruction], Score)], Cost) =
         // stop condition
-        if (nbGen > 0) then 
-            // remove zero-score
-            val pool_no_zero = removeZeroScored(pool)
-            // order list (NOT NEEDED ANYMORE because it is ordered by construct)
-            // val orderedPool = sortPool(pool_no_zero, List[(List[Instruction], Score)]())
-            // takes 5 best
-            val bests = if pool_no_zero.length > 5 then pool_no_zero.take(5) else pool_no_zero 
-            // generate siblings
-            val siblings = generateSiblings(5, pool, List[List[Instruction]]())
-            // evaluate siblings
-            val (evaluatedSiblings, costEvalSiblings) = evaluate(paper, siblings, target, 0, List[(List[Instruction], Score)]())
-            val newPool = insertManyInPool(evaluatedSiblings, bests)
-            nextGeneration(nbGen - 1, paper, target, newPool, cost + costEvalSiblings)
-        else
+        println("generation: " + nbGen + ", pool size: " + pool.length + ", best: " + pool(0)(1))
+        if (pool(0)(1) == 10000) then 
             (pool, cost)
+        else
+            if (nbGen > 0) then 
+                // remove zero-score
+                val pool_no_zero = removeZeroScored(pool)
+                // order list (NOT NEEDED ANYMORE because it is ordered by construct)
+                // val orderedPool = sortPool(pool_no_zero, List[(List[Instruction], Score)]())
+                // takes 5 best
+                val bests = if pool_no_zero.length > 5 then pool_no_zero.take(5) else pool_no_zero 
+                // generate siblings
+                val siblings = generateSiblings(10, paper, pool, List[List[Instruction]]())
+                val (randChildren, costRandChildren) = generateSiblingsByRandom(5, paper, Nil, 0)
+                // evaluate siblings
+                val (evaluatedSiblings, costEvalSiblings) = evaluate(paper, siblings ++ randChildren, target, 0, List[(List[Instruction], Score)]())
+                //val (evaluatedSiblings, costEvalSiblings) = evaluate(paper, randChildren, target, 0, List[(List[Instruction], Score)]())
+                val newPool = insertManyInPool(evaluatedSiblings, bests)
+                nextGeneration(nbGen - 1, paper, target, newPool, cost + costEvalSiblings + costRandChildren)
+            else
+                (pool, cost)
 
     // TODO: add new individuals by cross-over, mutation, random
-    def generateSiblings(nb: Int, pool: List[(List[Instruction], Score)], bag: List[List[Instruction]]): List[List[Instruction]] =
-        List[List[Instruction]]()
+    def generateSiblings(nb: Int, paper: Array[Array[String]], pool: List[(List[Instruction], Score)], bag: List[List[Instruction]]): List[List[Instruction]] =
+        val children = generateSiblingsByCrossover(nb, Random.shuffle(pool))
+        children
+
+    def generateSiblingsByRandom(nb:Int, paper: Array[Array[String]], result: List[List[Instruction]], cost: Cost) : (List[List[Instruction]], Cost) =
+        nb match
+            case 0 => (result, cost)
+            case nb => 
+                // add a random child
+                val (oneRandomChild, costRandom) = generateSiblingByRandom(paper)
+                generateSiblingsByRandom(nb - 1, paper, oneRandomChild :: result, cost + costRandom)
+    
+    private def range(from: Int, untilExclusive: Int, part: Char): List[Instruction] =
+        if from >= untilExclusive then Nil
+        else Instruction(part, from) :: range(from + 1, untilExclusive, part)
+
+    private def candidates(paper: Array[Array[String]]): List[Instruction] =
+        val cols = Paper.width(paper)
+        val rows = Paper.height(paper)
+        range(1, cols, 'L') ++ range(1, cols, 'R') ++ range(1, rows, 'T') ++ range(1, rows, 'B')
+
+    // pick a random instructions from candidates
+    def generateInstruction(candidates: List[Instruction]): Instruction =
+        val n = Random.nextInt(1000) % candidates.length
+        candidates(n)
+
+    def generateInstructions(paper: Array[Array[String]], result: List[Instruction], cost: Cost): (List[Instruction], Cost) =
+        if (Paper.height(paper) > 1) || Paper.width(paper) > 1 then
+            val oneInstruction = generateInstruction(candidates(paper))
+            val folded = Folder.fold(paper, oneInstruction)
+            generateInstructions(folded, oneInstruction :: result, cost + 1)
+        else 
+            (reverse(result), cost)
+ 
+    def generateSiblingByRandom(paper: Array[Array[String]]): (List[Instruction], Cost) =
+        generateInstructions(paper, Nil, 0)
+
+    def generateSiblingsByCrossover(nb:Int, pool: List[(List[Instruction], Score)]) : List[List[Instruction]] = 
+        pool match
+            case Nil => Nil
+            case p :: Nil => Nil
+            case p :: s :: rest => 
+                if nb > 0 then
+                    generateSiblingByCrossover(p(0), s(0)) :: generateSiblingsByCrossover(nb - 1, rest)
+                else
+                    Nil
+
+    def generateSiblingByCrossover(parent1: List[Instruction], parent2: List[Instruction]): List[Instruction] =
+        val genA = parent1
+        val genB = parent2
+        (genA, genB) match 
+            case (a :: restA, b :: restB) => 
+                if (Random.nextInt(10) % 2 > 0) then 
+                    a :: generateSiblingByCrossover(restA, restB) 
+                else 
+                    b :: generateSiblingByCrossover(restA, restB)
+            case (a :: restA, Nil) => a :: generateSiblingByCrossover(restA, Nil)
+            case (Nil, b :: restB) => b :: generateSiblingByCrossover(Nil, restB)
+            case (Nil,Nil) => Nil
 
     def evaluate(paper: Array[Array[String]], instsList: List[List[Instruction]], target: String, cost: Cost, evaluated: List[(List[Instruction], Score)]): (List[(List[Instruction], Score)], Cost) = 
         val (evaluatedPool, finalcost) = instsList match
             case Nil => (evaluated, cost)
             case instructions :: rest => 
-                val (score, costFitness) = fitness(paper, instructions, target) 
+                val (score, costFitness) = fitness(paper, instructions, target)
                 evaluate(paper, rest, target, cost + costFitness, (instructions, score) :: evaluated)
         (evaluatedPool, cost + finalcost)
 
@@ -91,6 +185,8 @@ object UnfolderSmart:
             case Nil => sorted
             case (instructions, score) :: rest => 
                 sortPool(rest, insertInPool((instructions, score), sorted))
+
+ 
 
     def insertInPool(elt: (List[Instruction], Score), pool: List[(List[Instruction], Score)]): List[(List[Instruction], Score)] = 
         pool match
@@ -108,23 +204,32 @@ object UnfolderSmart:
 
     // returns similarity score and cost (in number of folding step)
     def fitness(paper: Array[Array[String]], instructions: List[Instruction], target: String): (Int, Int) =
-        val folded = Folder.applyAll(paper, instructions)
-        assert(folded.length == 1)
-        assert(folded.head.length == 1)
-        val computed = folded(0)(0)
-        (similarityScore(computed.toList, target.toList, 0), instructions.length)
+        try {        
+            val folded = Folder.applyAll(paper, instructions)
+            if (folded.length == 1) && (folded.head.length == 1) then 
+                val computed = folded(0)(0)
+                (similarityScore(computed.toList, target.toList, 0), instructions.length)
+            else
+                println("Wrong number of instructions: " + instructions.length + " -> " + Paper.height(folded) + "x" + Paper.width(folded))
+                (0, instructions.length)
+        } catch {
+            case e => (0, instructions.length)
+        } 
 
     def similarityScore(computed: List[Char], expected: List[Char], score: Score): Score =
-        computed match
-            case c :: cn :: crest => 
-                if expected.contains(cn.toString + c.toString) then 
-                    similarityScore(cn :: crest, expected, score + 1)
-                else
-                    if expected.contains(c.toString + cn.toString) then 
-                        similarityScore(cn :: crest, expected, score + 2)
+        if computed.mkString == expected.mkString then
+            10000
+        else
+            computed match
+                case c :: cn :: crest =>
+                    if expected.mkString.contains(cn.toString + c.toString) then 
+                        similarityScore(cn :: crest, expected, score + 1)
                     else
-                        similarityScore(cn :: crest, expected, score)
-            case _ => score
+                        if expected.mkString.contains(c.toString + cn.toString) then 
+                            similarityScore(cn :: crest, expected, score + 2)
+                        else
+                            similarityScore(cn :: crest, expected, score)
+                case _ => score
     
 
     private def reverse[A](list: List[A]): List[A] =
