@@ -108,7 +108,8 @@ object UnfolderSmart:
     // TODO: add new individuals by cross-over, mutation, random
     def generateSiblings(nb: Int, paper: Array[Array[String]], pool: List[(List[Instruction], Score)], bag: List[List[Instruction]]): List[List[Instruction]] =
         val children = generateSiblingsByCrossover(nb, Random.shuffle(pool))
-        children
+        val mutatedChildren = generateSiblingsByMutation(5, pool)
+        children ++ mutatedChildren
 
     def generateSiblingsByRandom(nb:Int, paper: Array[Array[String]], result: List[List[Instruction]], cost: Cost) : (List[List[Instruction]], Cost) =
         nb match
@@ -142,6 +143,29 @@ object UnfolderSmart:
  
     def generateSiblingByRandom(paper: Array[Array[String]]): (List[Instruction], Cost) =
         generateInstructions(paper, Nil, 0)
+
+    def generateSiblingsByMutation(nb : Int, pool: List[(List[Instruction], Score)]) : List[List[Instruction]] =
+        pool match
+            case Nil => Nil
+            case head :: rest => 
+                if nb > 0 then
+                    generateSiblingByMutation(head(0)) :: generateSiblingsByMutation(nb - 1, rest)
+                else
+                    Nil
+    
+    def generateSiblingByMutation(instructions: List[Instruction]): List[Instruction] = 
+        instructions match
+            case Nil => Nil
+            case headInst :: restInst =>
+                if Random.nextInt(100) % 2 > 0 then
+                    val newPart = headInst.part match
+                        case 'L' => 'R'
+                        case 'R' => 'L'
+                        case 'B' => 'T'
+                        case 'T' => 'B'   
+                    Instruction(newPart, headInst.index) :: generateSiblingByMutation(restInst)
+                else
+                    headInst :: generateSiblingByMutation(restInst)
 
     def generateSiblingsByCrossover(nb:Int, pool: List[(List[Instruction], Score)]) : List[List[Instruction]] = 
         pool match
