@@ -4,10 +4,26 @@ Attempt to generate a simulator of paper folding with AI
 
 The project is coded in Scala language.
 
-The paper is divided into cells of the same size and identified with a letter. the top-left cell is identified with A and the following adjacent cell on its right is identified by B and so on. On the end of a line the naming of cells is resume on the line below. So for a paper with 4 columns and 3 lines, the cells are identified like in this schema (where | represents the separation between cells):
+The paper is divided into cells of the same size and identified with a letter.
+the list of letter (called alphabet) is
+ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()\*+,-./0123456789:;<=>?@[]^\_{|}~
+
+the top-left cell is identified with the first letter of the alphabet (in our case A) and the following adjacent cell on its right is identified by the second letter of the alphabet (B) and so on. On the end of a line the naming of cells is resume on the line below.
+
+So for a paper with 4 columns and 3 lines, the cells are identified like in this schema (where | represents the separation between cells):
 A | B | C | D
 E | F | G | H
 I | J | K | L
+
+So for a paper with 7 columns and 8 lines, the cells are identified like in this schema (where | represents the separation between cells):
+A | B | C | D | E | F | G
+H | I | J | K | L | M | N
+O | P | Q | R | S | T | U
+V | W | X | Y | Z | a | b
+c | d | e | f | g | h | i
+j | k | l | m | n | o | p
+q | r | s | t | u | v | w
+x | y | z | ! | # | $ | %
 
 It will be represented by an array of array of string
 

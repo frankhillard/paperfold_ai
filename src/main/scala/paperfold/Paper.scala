@@ -4,6 +4,8 @@ package paperfold
 object Paper:
   /** Row-major naming: top-left is A, then B to the right, wrapping to the next row. */
   def create(rows: Int, cols: Int): Array[Array[String]] =
+    // all printable ascii Char
+    val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./0123456789:;<=>?@[]^_{|}~"
     require(rows > 0 && cols > 0, "paper must have positive size")
     def fillRow(row: Int, col: Int): Array[String] =
       if col >= cols then Array.empty

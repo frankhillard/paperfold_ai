@@ -175,7 +175,7 @@ class PaperFoldTest extends munit.FunSuite:
     val folded = Folder.applyAll(Paper.create(height, width), instructions)
     assertEquals(toLists(folded), List(List(expected)))
 
-  test("UNFOLD of a 4x3 stack round-trips on a 4x3 sheet"):
+  test("UNFOLD SMART of a 4x3 stack round-trips on a 4x3 sheet"):
     val expected = "EHLIDABCJKGF"
     val (instructions, score, (height, width)) = UnfolderSmart.instructionsFor(expected)
     val folded = Folder.applyAll(Paper.create(height, width), instructions)
@@ -186,6 +186,11 @@ class PaperFoldTest extends munit.FunSuite:
     val (instructions, score, (height, width)) = UnfolderSmart.instructionsFor(expected)
     val folded = Folder.applyAll(Paper.create(height, width), instructions)
     assertEquals(toLists(folded), List(List(expected)))
+
+// A B C D E F G
+// H I J K L M N
+// O P Q R S T U
+// V W X Y Z @ #
 
   private def toLists(paper: Array[Array[String]]): List[List[String]] =
     paper.map(_.toList).toList
