@@ -2,11 +2,14 @@ package paperfold
 
 /** Recursively built grid of paper cells. Each cell is a stack of layer names (a String). */
 object Paper:
-  /** Row-major naming: top-left is A, then B to the right, wrapping to the next row. */
+  /** Hardcoded cell alphabet: one printable character per cell, in this order. */
+  val alphabet: String =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./0123456789:;<=>?@[]^_{|}~"
+
+  /** Row-major naming: top-left is the first alphabet letter, then the next to the right. */
   def create(rows: Int, cols: Int): Array[Array[String]] =
-    // all printable ascii Char
-    val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./0123456789:;<=>?@[]^_{|}~"
     require(rows > 0 && cols > 0, "paper must have positive size")
+    require(rows * cols <= alphabet.length, "paper is larger than the alphabet")
     def fillRow(row: Int, col: Int): Array[String] =
       if col >= cols then Array.empty
       else Array(cellName(row * cols + col)) ++ fillRow(row, col + 1)
@@ -17,11 +20,11 @@ object Paper:
 
   def cellName(index: Int): String =
     require(index >= 0)
-    def letters(n: Int): String =
-      val digit = ('A' + (n % 26)).toChar.toString
-      if n < 26 then digit
-      else letters(n / 26 - 1) + digit
-    letters(index)
+    def pick(remaining: String, n: Int): String =
+      require(remaining.nonEmpty, "paper is larger than the alphabet")
+      if n == 0 then remaining.head.toString
+      else pick(remaining.tail, n - 1)
+    pick(alphabet, index)
 
   def height(paper: Array[Array[String]]): Int = paper.length
 

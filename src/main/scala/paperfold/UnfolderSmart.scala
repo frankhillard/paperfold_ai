@@ -42,7 +42,11 @@ object UnfolderSmart:
         shapes match
             case Nil => sorted
             case shape :: rest => 
-                sortShapes(rest, insertInShapes(shape, sorted))
+                // remove 1x shapes
+                if Paper.height(shape) == 1 || Paper.width(shape) == 1 then
+                    sortShapes(rest, sorted)
+                else    
+                    sortShapes(rest, insertInShapes(shape, sorted))
 
     def insertInShapes(elt: Array[Array[String]], shapes: List[Array[Array[String]]]): List[Array[Array[String]]] = 
         shapes match
@@ -77,13 +81,13 @@ object UnfolderSmart:
         // order list
         val orderedPool = sortPool(evaluatedFirstPool, List[(List[Instruction], Score)]())
         // run 10 generations
-        val (finalPool, cost) = nextGeneration(20, paper, target, orderedPool, 0)
+        val (finalPool, cost) = nextGeneration(800, paper, target, orderedPool, 0)
         println("shape: " + Paper.height(paper) + "x" + Paper.width(paper) + " ,best: " + finalPool(0))
         (finalPool, costRandChildren + costEval + cost)
 
     def nextGeneration(nbGen: Int, paper: Array[Array[String]], target: String, pool: List[(List[Instruction], Score)], cost: Int): (List[(List[Instruction], Score)], Cost) =
         // stop condition
-        println("generation: " + nbGen + ", pool size: " + pool.length + ", best: " + pool(0)(1))
+        //println("generation: " + nbGen + ", pool size: " + pool.length + ", best: " + pool(0)(1))
         if (pool(0)(1) == 10000) then 
             (pool, cost)
         else
@@ -92,11 +96,17 @@ object UnfolderSmart:
                 val pool_no_zero = removeZeroScored(pool)
                 // order list (NOT NEEDED ANYMORE because it is ordered by construct)
                 // val orderedPool = sortPool(pool_no_zero, List[(List[Instruction], Score)]())
-                // takes 5 best
-                val bests = if pool_no_zero.length > 5 then pool_no_zero.take(5) else pool_no_zero 
+                // takes 10 best
+                //val bests = if pool_no_zero.length > 10 then pool_no_zero.take(10) else pool_no_zero 
+                val bests = if nbGen % 5 == 0 then 
+                    removeDuplicatesAdjacent(pool_no_zero).take(15)
+                else
+                    pool_no_zero.take(15)
+                //println("bests: " + bests.map(elt => elt(1)).toString)                
                 // generate siblings
-                val siblings = generateSiblings(10, paper, pool, List[List[Instruction]]())
+                val people = pool.map( elt => elt(0))
                 val (randChildren, costRandChildren) = generateSiblingsByRandom(5, paper, Nil, 0)
+                val siblings = generateSiblings(20, paper, people ++ randChildren, List[List[Instruction]]())
                 // evaluate siblings
                 val (evaluatedSiblings, costEvalSiblings) = evaluate(paper, siblings ++ randChildren, target, 0, List[(List[Instruction], Score)]())
                 //val (evaluatedSiblings, costEvalSiblings) = evaluate(paper, randChildren, target, 0, List[(List[Instruction], Score)]())
@@ -106,10 +116,11 @@ object UnfolderSmart:
                 (pool, cost)
 
     // TODO: add new individuals by cross-over, mutation, random
-    def generateSiblings(nb: Int, paper: Array[Array[String]], pool: List[(List[Instruction], Score)], bag: List[List[Instruction]]): List[List[Instruction]] =
-        val children = generateSiblingsByCrossover(nb, Random.shuffle(pool))
-        val mutatedChildren = generateSiblingsByMutation(5, pool)
-        children ++ mutatedChildren
+    def generateSiblings(nb: Int, paper: Array[Array[String]], pool: List[List[Instruction]], bag: List[List[Instruction]]): List[List[Instruction]] =
+        val children = generateSiblingsByCrossover(nb / 3, Random.shuffle(pool))
+        val childrenMulti = generateSiblingsByCrossoverMulti(nb / 3, Random.shuffle(pool))
+        val mutatedChildren = generateSiblingsByMutation(nb / 3, pool)
+        childrenMulti ++ children ++ mutatedChildren
 
     def generateSiblingsByRandom(nb:Int, paper: Array[Array[String]], result: List[List[Instruction]], cost: Cost) : (List[List[Instruction]], Cost) =
         nb match
@@ -144,12 +155,12 @@ object UnfolderSmart:
     def generateSiblingByRandom(paper: Array[Array[String]]): (List[Instruction], Cost) =
         generateInstructions(paper, Nil, 0)
 
-    def generateSiblingsByMutation(nb : Int, pool: List[(List[Instruction], Score)]) : List[List[Instruction]] =
+    def generateSiblingsByMutation(nb : Int, pool: List[List[Instruction]]) : List[List[Instruction]] =
         pool match
             case Nil => Nil
             case head :: rest => 
                 if nb > 0 then
-                    generateSiblingByMutation(head(0)) :: generateSiblingsByMutation(nb - 1, rest)
+                    generateSiblingByMutation(head) :: generateSiblingsByMutation(nb - 1, rest)
                 else
                     Nil
     
@@ -162,32 +173,57 @@ object UnfolderSmart:
                         case 'L' => 'R'
                         case 'R' => 'L'
                         case 'B' => 'T'
-                        case 'T' => 'B'   
-                    Instruction(newPart, headInst.index) :: generateSiblingByMutation(restInst)
+                        case 'T' => 'B'
+                    val newIndex = 
+                        if Random.nextInt(100) % 2 > 0 then
+                            headInst.index + 1
+                        else 
+                            if headInst.index > 2 then 
+                                headInst.index - 1
+                            else
+                                headInst.index + 1
+                    Instruction(newPart, newIndex) :: generateSiblingByMutation(restInst)
                 else
                     headInst :: generateSiblingByMutation(restInst)
 
-    def generateSiblingsByCrossover(nb:Int, pool: List[(List[Instruction], Score)]) : List[List[Instruction]] = 
+    def generateSiblingsByCrossover(nb:Int, pool: List[List[Instruction]]) : List[List[Instruction]] = 
         pool match
             case Nil => Nil
             case p :: Nil => Nil
             case p :: s :: rest => 
                 if nb > 0 then
-                    generateSiblingByCrossover(p(0), s(0)) :: generateSiblingsByCrossover(nb - 1, rest)
+                    generateSiblingByCrossover(p, s) ++ generateSiblingsByCrossover(nb - 1, rest)
                 else
                     Nil
 
-    def generateSiblingByCrossover(parent1: List[Instruction], parent2: List[Instruction]): List[Instruction] =
+    def generateSiblingByCrossover(parent1: List[Instruction], parent2: List[Instruction]): List[List[Instruction]] =
+        val index = (Random.nextInt(100) % parent1.length) + 1
+        val one = parent1.take(index) ++ parent2.drop(index)
+        val two = parent2.take(index) ++ parent1.drop(index)
+        one :: two :: Nil
+
+
+    def generateSiblingsByCrossoverMulti(nb:Int, pool: List[List[Instruction]]) : List[List[Instruction]] = 
+        pool match
+            case Nil => Nil
+            case p :: Nil => Nil
+            case p :: s :: rest => 
+                if nb > 0 then
+                    generateSiblingByCrossoverMulti(p, s) :: generateSiblingsByCrossoverMulti(nb - 1, rest)
+                else
+                    Nil
+
+    def generateSiblingByCrossoverMulti(parent1: List[Instruction], parent2: List[Instruction]): List[Instruction] =
         val genA = parent1
         val genB = parent2
         (genA, genB) match 
             case (a :: restA, b :: restB) => 
                 if (Random.nextInt(10) % 2 > 0) then 
-                    a :: generateSiblingByCrossover(restA, restB) 
+                    a :: generateSiblingByCrossoverMulti(restA, restB) 
                 else 
-                    b :: generateSiblingByCrossover(restA, restB)
-            case (a :: restA, Nil) => a :: generateSiblingByCrossover(restA, Nil)
-            case (Nil, b :: restB) => b :: generateSiblingByCrossover(Nil, restB)
+                    b :: generateSiblingByCrossoverMulti(restA, restB)
+            case (a :: restA, Nil) => a :: generateSiblingByCrossoverMulti(restA, Nil)
+            case (Nil, b :: restB) => b :: generateSiblingByCrossoverMulti(Nil, restB)
             case (Nil,Nil) => Nil
 
     def evaluate(paper: Array[Array[String]], instsList: List[List[Instruction]], target: String, cost: Cost, evaluated: List[(List[Instruction], Score)]): (List[(List[Instruction], Score)], Cost) = 
@@ -203,6 +239,16 @@ object UnfolderSmart:
             case Nil => Nil
             case (insts, 0) :: rest => removeZeroScored(rest)
             case (insts, score) :: rest =>  (insts, score) :: removeZeroScored(rest)
+
+    def removeDuplicatesAdjacent(pool: List[(List[Instruction], Score)]): List[(List[Instruction], Score)] =
+        pool match
+            case Nil => Nil
+            case (inst1, score1) :: (inst2, score2) :: rest =>
+                if (inst1 == inst2) then 
+                    removeDuplicatesAdjacent((inst2, score2) :: rest) 
+                else
+                    (inst1, score1) :: removeDuplicatesAdjacent((inst2, score2) :: rest) 
+            case (insts, score) :: Nil =>  (insts, score) :: Nil
 
     def sortPool(pool: List[(List[Instruction], Score)], sorted: List[(List[Instruction], Score)]): List[(List[Instruction], Score)] = 
         pool match
@@ -234,7 +280,7 @@ object UnfolderSmart:
                 val computed = folded(0)(0)
                 (similarityScore(computed.toList, target.toList, 0), instructions.length)
             else
-                println("Wrong number of instructions: " + instructions.length + " -> " + Paper.height(folded) + "x" + Paper.width(folded))
+                //println("Wrong number of instructions: " + instructions.length + " -> " + Paper.height(folded) + "x" + Paper.width(folded))
                 (0, instructions.length)
         } catch {
             case e => (0, instructions.length)
@@ -245,14 +291,25 @@ object UnfolderSmart:
             10000
         else
             computed match
-                case c :: cn :: crest =>
+                case c :: cn :: cn2 :: crest =>
+                    if expected.mkString.contains(c.toString + cn.toString + cn2.toString) then 
+                        similarityScore(cn :: cn2 :: crest, expected, score + 4)
+                    else
+                        if expected.mkString.contains(cn.toString + c.toString) then 
+                            similarityScore(cn :: cn2 :: crest, expected, score + 1)
+                        else
+                            if expected.mkString.contains(c.toString + cn.toString) then 
+                                similarityScore(cn :: cn2 :: crest, expected, score + 2)
+                            else
+                                similarityScore(cn :: cn2 :: crest, expected, score)
+                case c :: cn :: Nil => 
                     if expected.mkString.contains(cn.toString + c.toString) then 
-                        similarityScore(cn :: crest, expected, score + 1)
+                        score + 1
                     else
                         if expected.mkString.contains(c.toString + cn.toString) then 
-                            similarityScore(cn :: crest, expected, score + 2)
+                            score + 2
                         else
-                            similarityScore(cn :: crest, expected, score)
+                            score
                 case _ => score
     
 
