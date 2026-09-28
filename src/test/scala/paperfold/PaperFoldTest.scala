@@ -175,18 +175,24 @@ class PaperFoldTest extends munit.FunSuite:
     val folded = Folder.applyAll(Paper.create(3, 3), instructions)
     assertEquals(toLists(folded), List(List(expected)))
 
-  // test("UNFOLD of a 4x3 stack round-trips on a 4x3 sheet"):
-  //   val expected = "EHLIDABCJKGF"
-  //   val instructions = Unfolder.instructionsFor(expected)
-  //   val folded = Folder.applyAll(Paper.create(3, 4), instructions)
-  //   assertEquals(toLists(folded), List(List(expected)))
-// 
-  // test("UNFOLD of a 4x3 stack round-trips on a 4x3 sheet"):
-  //   val expected = "FGKJCBADILHE"
-  //   val instructions = Unfolder.instructionsFor(expected)
-  //   val folded = Folder.applyAll(Paper.create(3, 4), instructions)
-  //   assertEquals(toLists(folded), List(List(expected)))
+  test("UNFOLD of a 4x3 stack round-trips on a 4x3 sheet"):
+    val expected = "EHLIDABCJKGF"
+    val instructions = Unfolder.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(3, 4), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+ 
+  test("UNFOLD of a 4x3 stack round-trips on a 4x3 sheet"):
+    val expected = "FGKJCBADILHE"
+    val instructions = Unfolder.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(3, 4), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
 
+  // too long test for brut force
+  // test("UNFOLD of a 7x8 stack"):
+  //   val expected = "VOxqut!#SRYZaXQT$zsvwry%UPWbidINGBkpolCFMJehgfKLEDmnjAHc"
+  //   val instructions = Unfolder.instructionsFor(expected)
+  //   val folded = Folder.applyAll(Paper.create(7, 8), instructions)
+  //   assertEquals(toLists(folded), List(List(expected)))
 
 
   test("similarity score between GCBIEHADF and HIGADFEBC"):
@@ -279,6 +285,42 @@ class PaperFoldTest extends munit.FunSuite:
   test("UNFOLD SMART of a 7x8 stack"):
     val expected = "VOxqut!#SRYZaXQT$zsvwry%UPWbidINGBkpolCFMJehgfKLEDmnjAHc"
     val (instructions, score, (height, width)) = UnfolderSmart.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(height, width), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+  test("UNFOLD IA of CABD recovers a 2x2 folding"):
+    val expected = "CABD"
+    val (instructions, (height, width)) = UnfolderIA.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(height, width), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+  test("UNFOLD IA of a 3x3 stack round-trips"):
+    val expected = "HIGADFEBC"
+    val (instructions, (height, width)) = UnfolderIA.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(height, width), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+  test("UNFOLD IA of a 3x3 stack GIHEFCBAD round-trips"):
+    val expected = "GIHEFCBAD"
+    val (instructions, (height, width)) = UnfolderIA.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(height, width), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+  test("UNFOLD IA of a 4x3 stack round-trips"):
+    val expected = "EHLIDABCJKGF"
+    val (instructions, (height, width)) = UnfolderIA.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(height, width), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+  test("UNFOLD IA of a 3x4 stack FGKJCBADILHE round-trips"):
+    val expected = "FGKJCBADILHE"
+    val (instructions, (height, width)) = UnfolderIA.instructionsFor(expected)
+    val folded = Folder.applyAll(Paper.create(height, width), instructions)
+    assertEquals(toLists(folded), List(List(expected)))
+
+  test("UNFOLD IA of a 7x8 stack"):
+    val expected = "VOxqut!#SRYZaXQT$zsvwry%UPWbidINGBkpolCFMJehgfKLEDmnjAHc"
+    val (instructions, (height, width)) = UnfolderIA.instructionsFor(expected)
     val folded = Folder.applyAll(Paper.create(height, width), instructions)
     assertEquals(toLists(folded), List(List(expected)))
 
